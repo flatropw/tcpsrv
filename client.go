@@ -3,12 +3,15 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"os"
+	"strings"
 )
 
 func main() {
-	conn, _ := net.Dial("tcp", config.address+":"+config.port)
+	connection, _ := net.Dial("tcp", config.address+":"+config.port)
+	defer connection.Close()
 	for {
 		reader := bufio.NewReader(os.Stdin)
 
@@ -16,17 +19,28 @@ func main() {
 
 		text, err := reader.ReadString(config.delimiter)
 		if err != nil {
-			panic(err)
+			if err != io.EOF {
+				fmt.Println(err)
+			}
+			break
 		}
 
-		_, err = fmt.Fprintf(conn, text+"\n")
-		if err != nil {
-			panic(err)
+		text = strings.TrimSuffix(text, string(config.delimiter))
+		if text == config.exitPhrase {
+			break
 		}
 
-		message, err := bufio.NewReader(conn).ReadString(config.delimiter)
+		_, err = fmt.Fprintf(connection, text+string(config.delimiter))
+
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+		}
+
+		message, err := bufio.NewReader(connection).ReadString(config.delimiter)
+
+		if err != nil {
+			fmt.Println(err)
+			break
 		}
 
 		fmt.Print("Response: " + message)
